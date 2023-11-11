@@ -2,25 +2,28 @@ import requests
 import urllib.parse
 import json
 import pandas as pd
+from dotenv import load_dotenv
+import os
 
-data = pd.read_csv (r'/home/rahil_shaikh/datasci_7_geospatial/assignment7_slim_hospital_addresses.csv')   
+load_dotenv()
+api_key = os.getenv('GOOGLE_MAPS_API')
 
-list_of_address = [data
+df = pd.read_csv("https://raw.githubusercontent.com/hantswilliams/HHA_507_2023/main/WK7/assignment7_slim_hospital_addresses.csv")
 
-]
+df['gcd'] = df['ADDRESS'] + ' ' + df['CITY'] + ' ' + df['STATE']
+
+df_s =df.sample(n=100)
 
 google_response = []
 
-for address in list_of_address: 
-    api_key = 'AIzaSyB0K9kFuiTKI6ZzM2qADE8TaQHmOkGRC9s'
-
+for address in df_s['gcd']: 
+    
     search = 'https://maps.googleapis.com/maps/api/geocode/json?address='
 
     location_raw = address
     location_clean = urllib.parse.quote(location_raw)
 
     url_request_part1 = search + location_clean + '&key=' + api_key
-    url_request_part1
 
     response = requests.get(url_request_part1)
     response_dictionary = response.json()
@@ -29,46 +32,44 @@ for address in list_of_address:
     lat_response = lat_long['lat']
     lng_response = lat_long['lng']
 
-    final = {'address': address, 'lat': lat_response, 'lon': lng_response}
+    final = {'address': address, 'lat': lat_response, 'lng': lng_response}
+    
     google_response.append(final)
 
     print(f'....finished with {address}')
 
+df_geo = pd.DataFrame(google_response)
 
-df1 = pd.DataFrame(google_response)
-df1
+df_geo.to_csv('geocoding.csv')
+
 ##### reverse code 
 
-reverse_geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng='
-latitude = '38.897676'
-longitude = '-77.036530'
-step1 = reverse_geocode_url + latitude + ',' + longitude + '&key=' + api_key
+df = pd.read_csv('https://raw.githubusercontent.com/hantswilliams/HHA_507_2023/main/WK7/assignment7_slim_hospital_coordinates.csv')
 
-###### function
+df['gcd'] = df['X'].astype(str) + ',' + df['Y'].astype(str)
 
-def geocode(address_here): 
+df_s = df.sample(100)
+    
+google_response = []
 
-    api_key = 'AIzaSyB0K9kFuiTKI6ZzM2qADE8TaQHmOkGRC9s'
-
-    search = 'https://maps.googleapis.com/maps/api/geocode/json?address='
-
-    location_raw = address_here
+for coord in df_s['gcd']:
+    
+    location_raw = coord
     location_clean = urllib.parse.quote(location_raw)
 
-    url_request_part1 = search + location_clean + '&key=' + api_key
-    url_request_part1
+    reverse_geocode_url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng='
+    step1 = reverse_geocode_url + location_clean + '&key=' + api_key
 
-    response = requests.get(url_request_part1)
+    response = requests.get(step1)
     response_dictionary = response.json()
 
-    lat_long = response_dictionary['results'][0]['geometry']['location']
-    lat_response = lat_long['lat']
-    lng_response = lat_long['lng']
+    address = response_dictionary['results'][0]['formatted_address']
 
-    final = {'address': address_here, 'lat': lat_response, 'lon': lng_response}
+    final = {'address': address, 'coordinates': coord}
+    google_response.append(final)
 
-    return final 
+    print(f'....finished with {coord}')
 
+df_add = pd.DataFrame(google_response)
 
-geocode('5 bleecker st ny ny')
-
+df_add.to_csv('reverse_geocoding.csv')
